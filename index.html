@@ -547,10 +547,10 @@ window.sendEmail=async()=>{
 
   try {
     const ts=Date.now();
-    const emailId = push(ref(db, `mail/${CU.uid}`)).key;
     
-    // Save to sender's Sent folder first
-    await set(ref(db, `mail/${CU.uid}/${emailId}`), {
+    // Save to sender's Sent folder
+    const sentRef = push(ref(db, `mail/${CU.uid}`));
+    await set(sentRef, {
       from: CU.email,
       fromName: CU.displayName || CU.email,
       to: to,
@@ -561,26 +561,43 @@ window.sendEmail=async()=>{
       read: true
     });
 
-    // Find recipient
+    // Try to find recipient UID
     let ruid = null;
+    
+    // Method 1: Try emailIndex first (fastest)
     try {
-      const usersSnap = await get(ref(db, 'users'));
-      if (usersSnap.exists()) {
-        usersSnap.forEach(childSnap => {
-          const userData = childSnap.val();
-          if (userData && userData.email && userData.email.toLowerCase() === to.toLowerCase()) {
-            ruid = childSnap.key;
-          }
-        });
+      const ekey = to.toLowerCase().replace(/\./g,'_DOT_').replace(/@/g,'_AT_');
+      const indexSnap = await get(ref(db, `emailIndex/${ekey}`));
+      if (indexSnap.exists()) {
+        ruid = indexSnap.val();
+        console.log('Found via emailIndex:', ruid);
       }
     } catch(e) { 
-      console.warn('Error finding user:', e); 
+      console.warn('EmailIndex lookup failed:', e); 
+    }
+    
+    // Method 2: If not found, scan users
+    if (!ruid) {
+      try {
+        const usersSnap = await get(ref(db, 'users'));
+        if (usersSnap.exists()) {
+          usersSnap.forEach(childSnap => {
+            const userData = childSnap.val();
+            if (userData && userData.email && userData.email.toLowerCase() === to.toLowerCase()) {
+              ruid = childSnap.key;
+              console.log('Found via users scan:', ruid);
+            }
+          });
+        }
+      } catch(e) { 
+        console.warn('Users scan failed:', e); 
+      }
     }
 
-    // Deliver to recipient if exists
+    // Deliver to recipient if found
     if (ruid) {
-      const inboxId = push(ref(db, `mail/${ruid}`)).key;
-      await set(ref(db, `mail/${ruid}/${inboxId}`), {
+      const inboxRef = push(ref(db, `mail/${ruid}`));
+      await set(inboxRef, {
         from: CU.email,
         fromName: CU.displayName || CU.email,
         to: to,
