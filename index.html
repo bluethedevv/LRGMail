@@ -371,6 +371,7 @@ window.doRegister = async () => {
     await set(ref(db,`emailIndex/${ekey}`),cred.user.uid);
     amsg('rm','ok','Account created! Signing you in...');
   } catch(e){
+    console.error('Registration error:', e);
     amsg('rm','err',e.code==='auth/email-already-in-use'?'That name is taken, try another.':e.message);
     btn.disabled=false; btn.textContent='Create My Account';
   }
@@ -383,7 +384,11 @@ window.doLogin = async () => {
   const btn=document.getElementById('lb');
   btn.disabled=true; btn.textContent='Signing in...';
   try { await signInWithEmailAndPassword(auth,email,pass); }
-  catch(e){ amsg('lm','err','Wrong email or password.'); btn.disabled=false; btn.textContent='Sign In to LuminaMail'; }
+  catch(e){ 
+    console.error('Login error:', e);
+    amsg('lm','err','Wrong email or password.'); 
+    btn.disabled=false; btn.textContent='Sign In to LuminaMail'; 
+  }
 };
 
 /* ── AUTH STATE ── */
@@ -542,28 +547,22 @@ window.sendEmail=async()=>{
 
   try {
     const ts=Date.now();
+    const emailId = push(ref(db, `mail/${CU.uid}`)).key;
     
-    // Create email data object
-    const emailData = { 
-      from: CU.email, 
-      fromName: CU.displayName || CU.email, 
-      to: to, 
-      subject: subject || '(no subject)', 
-      body: body || '', 
+    // Save to sender's Sent folder first
+    await set(ref(db, `mail/${CU.uid}/${emailId}`), {
+      from: CU.email,
+      fromName: CU.displayName || CU.email,
+      to: to,
+      subject: subject || '(no subject)',
+      body: body || '',
       timestamp: ts,
+      folder: 'sent',
       read: true
-    };
-
-    // Save to sender's Sent folder
-    const sentRef = push(ref(db, `mail/${CU.uid}`));
-    await set(sentRef, { 
-      ...emailData, 
-      folder: 'sent'
     });
 
-    // Find recipient UID by scanning users
+    // Find recipient
     let ruid = null;
-    
     try {
       const usersSnap = await get(ref(db, 'users'));
       if (usersSnap.exists()) {
@@ -578,10 +577,10 @@ window.sendEmail=async()=>{
       console.warn('Error finding user:', e); 
     }
 
-    // Deliver to recipient's inbox if they exist
+    // Deliver to recipient if exists
     if (ruid) {
-      const inboxRef = push(ref(db, `mail/${ruid}`));
-      await set(inboxRef, { 
+      const inboxId = push(ref(db, `mail/${ruid}`)).key;
+      await set(ref(db, `mail/${ruid}/${inboxId}`), {
         from: CU.email,
         fromName: CU.displayName || CU.email,
         to: to,
@@ -596,14 +595,13 @@ window.sendEmail=async()=>{
       notif('inf', `Email sent. ${to} is not on LuminaMail yet.`);
     }
 
-    // Close compose and reset button
     closeCompose();
     notif('ok', 'Message sent successfully!');
 
   } catch(err){
     console.error('sendEmail error:', err);
-    notif('err', 'Send failed: ' + err.message);
-    btnReady(); // Re-enable button on error
+    notif('err', 'Send failed: ' + (err.message || 'Unknown error'));
+    btnReady();
   }
 };
 
@@ -611,14 +609,21 @@ window.sendEmail=async()=>{
 window.saveDraft=async()=>{
   try {
     await set(push(ref(db,`mail/${CU.uid}`)),{
-      from:CU.email,fromName:CU.displayName||CU.email,
+      from:CU.email,
+      fromName:CU.displayName||CU.email,
       to:document.getElementById('cto').value,
       subject:document.getElementById('csub').value,
       body:document.getElementById('cbody').value,
-      timestamp:Date.now(),read:true,folder:'draft'
+      timestamp:Date.now(),
+      read:true,
+      folder:'draft'
     });
-    notif('ok','Draft saved.'); closeCompose();
-  } catch(e){ notif('err','Save failed: '+e.message); }
+    notif('ok','Draft saved.'); 
+    closeCompose();
+  } catch(e){ 
+    console.error('Draft error:', e);
+    notif('err','Save failed: '+e.message); 
+  }
 };
 
 /* ── DELETE / TOGGLE READ ── */
@@ -626,20 +631,38 @@ window.delEmail=async()=>{
   if(!SELID) return;
   const e=EMAILS[SELID]; if(!e) return;
   try {
-    if(e.folder==='trash'){ await remove(ref(db,`mail/${CU.uid}/${SELID}`)); notif('ok','Permanently deleted.'); }
-    else { await update(ref(db,`mail/${CU.uid}/${SELID}`),{folder:'trash'}); notif('ok','Moved to Trash.'); }
+    if(e.folder==='trash'){ 
+      await remove(ref(db,`mail/${CU.uid}/${SELID}`)); 
+      notif('ok','Permanently deleted.'); 
+    } else { 
+      await update(ref(db,`mail/${CU.uid}/${SELID}`),{folder:'trash'}); 
+      notif('ok','Moved to Trash.'); 
+    }
     SELID=null;
     document.getElementById('vtb').style.display='none';
     document.getElementById('vca').innerHTML=noHTML();
-  } catch(err){ notif('err','Delete failed: '+err.message); }
+  } catch(err){ 
+    console.error('Delete error:', err);
+    notif('err','Delete failed: '+err.message); 
+  }
 };
+
 window.togRead=async()=>{
   if(!SELID) return;
   const e=EMAILS[SELID]; if(!e) return;
-  try { await update(ref(db,`mail/${CU.uid}/${SELID}`),{read:!e.read}); notif('inf',e.read?'Marked unread.':'Marked read.'); }
-  catch(err){ notif('err',err.message); }
+  try { 
+    await update(ref(db,`mail/${CU.uid}/${SELID}`),{read:!e.read}); 
+    notif('inf',e.read?'Marked unread.':'Marked read.'); 
+  } catch(err){ 
+    console.error('Toggle read error:', err);
+    notif('err',err.message); 
+  }
 };
-window.doSignOut=async()=>{ if(unsub){unsub();unsub=null;} await signOut(auth).catch(()=>{}); };
+
+window.doSignOut=async()=>{ 
+  if(unsub){unsub();unsub=null;} 
+  await signOut(auth).catch(()=>{}); 
+};
 
 /* ── CONTEXT MENU ── */
 window.ctxMenu=(e,id)=>{
