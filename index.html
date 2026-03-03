@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>LuminaMail – Your Luminous Inbox</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+:root{--bg:#0d0f14;--bg2:#13161e;--bg3:#1a1e2a;--bg4:#202533;--border:#2a2f3f;--border2:#353b4f;--accent:#4f8ef7;--accent2:#7ab3ff;--accent-glow:rgba(79,142,247,.18);--text:#e8ecf5;--text2:#9aa3bb;--text3:#5a6380;--danger:#f76f6f;--success:#52d08a;--sidebar-w:220px;--toolbar-h:48px;--font:'DM Sans',sans-serif;--mono:'DM Mono',monospace;--radius:8px;--transition:.18s cubic-bezier(.4,0,.2,1)}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;font-family:var(--font);background:var(--bg);color:var(--text);font-size:14px}
+::selection{background:var(--accent);color:#fff}
+::-webkit-scrollbar{width:6px;height:6px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}::-webkit-scrollbar-thumb:hover{background:var(--text3)}
+
+/* AUTH */
+#auth-screen{position:fixed;inset:0;z-index:999;background:var(--bg);display:flex;align-items:center;justify-content:center;animation:fadeIn .4s ease}
+#auth-screen.hidden{display:none}
+.auth-card{width:440px;background:var(--bg2);border:1px solid var(--border);border-radius:16px;overflow:hidden;box-shadow:0 32px 80px rgba(0,0,0,.6);animation:slideUp .45s cubic-bezier(.22,1,.36,1)}
+.auth-logo{padding:32px 32px 24px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border)}
+.auth-logo-icon{width:40px;height:40px;background:linear-gradient(135deg,#4f8ef7,#7ab3ff);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;box-shadow:0 4px 16px var(--accent-glow)}
+.auth-logo-text{font-size:22px;font-weight:700;letter-spacing:-.5px}
+.auth-logo-sub{font-size:11px;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;margin-top:2px}
+.auth-tabs{display:flex;border-bottom:1px solid var(--border)}
+.auth-tab{flex:1;padding:14px;text-align:center;cursor:pointer;color:var(--text3);font-weight:500;font-size:13px;border-bottom:2px solid transparent;transition:var(--transition);letter-spacing:.3px}
+.auth-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.auth-tab:hover:not(.active){color:var(--text2)}
+.auth-body{padding:28px 32px 32px}
+.auth-panel{display:none;animation:fadeIn .25s ease}.auth-panel.active{display:block}
+.form-row{margin-bottom:18px}
+.form-row label{display:block;font-size:12px;color:var(--text2);margin-bottom:6px;font-weight:500;letter-spacing:.3px}
+.form-row input{width:100%;padding:10px 14px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-family:var(--font);font-size:14px;outline:none;transition:var(--transition)}
+.form-row input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow)}
+.form-row input::placeholder{color:var(--text3)}
+.name-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.email-preview{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px;font-family:var(--mono);font-size:13px;color:var(--accent2);margin-top:8px;min-height:38px;display:flex;align-items:center}
+.btn-primary{width:100%;padding:11px;border:none;border-radius:var(--radius);background:linear-gradient(135deg,#4f8ef7,#3a74e0);color:#fff;font-family:var(--font);font-size:14px;font-weight:600;cursor:pointer;transition:var(--transition);letter-spacing:.2px;box-shadow:0 4px 16px rgba(79,142,247,.3)}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 6px 24px rgba(79,142,247,.45)}
+.btn-primary:active{transform:translateY(0)}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.auth-msg{margin-top:14px;padding:10px 14px;border-radius:var(--radius);font-size:13px;display:none}
+.auth-msg.error{display:block;background:rgba(247,111,111,.1);border:1px solid rgba(247,111,111,.3);color:var(--danger)}
+.auth-msg.success{display:block;background:rgba(82,208,138,.1);border:1px solid rgba(82,208,138,.3);color:var(--success)}
+
+/* APP */
+#app{height:100%;display:flex;flex-direction:column;opacity:0;transition:opacity .3s ease}
+#app.visible{opacity:1}
+
+/* TOOLBAR */
+.toolbar{height:var(--toolbar-h);min-height:var(--toolbar-h);background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 12px;gap:4px;position:relative;z-index:10}
+.toolbar-logo{display:flex;align-items:center;gap:8px;padding:0 8px;margin-right:8px}
+.toolbar-logo-icon{width:26px;height:26px;background:linear-gradient(135deg,#4f8ef7,#7ab3ff);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px}
+.toolbar-logo-text{font-size:15px;font-weight:700;letter-spacing:-.3px}
+.toolbar-sep{width:1px;height:24px;background:var(--border);margin:0 4px}
+.tb-btn{display:flex;align-items:center;gap:6px;padding:5px 10px;border-radius:6px;border:none;background:transparent;color:var(--text2);cursor:pointer;font-family:var(--font);font-size:13px;transition:var(--transition);white-space:nowrap}
+.tb-btn:hover{background:var(--bg3);color:var(--text)}
+.tb-btn svg{flex-shrink:0}
+.tb-btn-icon{padding:5px;border-radius:6px;border:none;background:transparent;color:var(--text2);cursor:pointer;transition:var(--transition)}
+.tb-btn-icon:hover{background:var(--bg3);color:var(--text)}
+.toolbar-right{margin-left:auto;display:flex;align-items:center;gap:6px}
+.toolbar-search{display:flex;align-items:center;gap:8px;background:var(--bg3);border:1px solid var(--border);border-radius:20px;padding:5px 12px;transition:var(--transition);width:240px}
+.toolbar-search:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow);width:300px}
+.toolbar-search input{background:transparent;border:none;outline:none;color:var(--text);font-family:var(--font);font-size:13px;flex:1}
+.toolbar-search input::placeholder{color:var(--text3)}
+.user-btn{display:flex;align-items:center;gap:8px;padding:4px 10px 4px 4px;border-radius:20px;border:none;background:var(--bg3);cursor:pointer;transition:var(--transition)}
+.user-btn:hover{background:var(--bg4)}
+.user-avatar{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#4f8ef7,#7ab3ff);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff}
+.user-name{font-size:13px;color:var(--text2);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* MAIN */
+.app-body{flex:1;display:flex;overflow:hidden}
+
+/* SIDEBAR */
+.sidebar{width:var(--sidebar-w);min-width:var(--sidebar-w);background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;padding:8px 0}
+.sidebar-label{padding:8px 16px 4px;font-size:10px;font-weight:600;color:var(--text3);letter-spacing:.8px;text-transform:uppercase}
+.sidebar-item{display:flex;align-items:center;gap:10px;padding:7px 16px;cursor:pointer;transition:var(--transition);color:var(--text2);font-size:13px;font-weight:450;position:relative}
+.sidebar-item:hover{background:var(--bg3);color:var(--text)}
+.sidebar-item.active{background:rgba(79,142,247,.12);color:var(--accent);font-weight:500}
+.sidebar-item.active::before{content:'';position:absolute;left:0;top:4px;bottom:4px;width:3px;background:var(--accent);border-radius:0 2px 2px 0}
+.sidebar-item svg{flex-shrink:0;opacity:.7}.sidebar-item.active svg{opacity:1}
+.badge{margin-left:auto;min-width:20px;height:18px;background:var(--accent);color:#fff;border-radius:9px;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 5px;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.7}}
+
+/* EMAIL LIST */
+.email-list-pane{width:320px;min-width:280px;border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.pane-header{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--bg2)}
+.pane-title{font-size:15px;font-weight:600;letter-spacing:-.3px}
+.pane-count{font-size:12px;color:var(--text3);margin-left:6px}
+.email-list{flex:1;overflow-y:auto}
+.email-item{padding:12px 16px;border-bottom:1px solid var(--border);cursor:pointer;transition:var(--transition);position:relative}
+.email-item:hover{background:var(--bg3)}
+.email-item.active{background:rgba(79,142,247,.08);border-left:3px solid var(--accent)}
+.email-item.unread .email-item-subject{font-weight:600;color:var(--text)}
+.email-item.unread::after{content:'';position:absolute;right:14px;top:50%;transform:translateY(-50%);width:7px;height:7px;border-radius:50%;background:var(--accent)}
+.email-item-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:3px}
+.email-item-from{font-size:13px;font-weight:500;color:var(--text);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.email-item-time{font-size:11px;color:var(--text3);font-family:var(--mono)}
+.email-item-subject{font-size:13px;color:var(--text2);margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.email-item-preview{font-size:12px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.empty-state{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--text3);gap:12px;padding:32px;min-height:200px}
+.empty-state svg{opacity:.3}
+.empty-state p{font-size:13px;text-align:center}
+
+/* EMAIL VIEW */
+.email-view-pane{flex:1;display:flex;flex-direction:column;overflow:hidden;background:var(--bg)}
+.email-view-toolbar{padding:10px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:6px;background:var(--bg2)}
+.email-view-content{flex:1;overflow-y:auto;padding:28px 32px}
+.email-view-subject{font-size:22px;font-weight:700;letter-spacing:-.5px;margin-bottom:16px;line-height:1.3}
+.email-view-meta{display:flex;align-items:center;gap:12px;padding:14px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border);margin-bottom:24px}
+.meta-avatar{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#4f8ef7,#7ab3ff);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#fff;flex-shrink:0}
+.meta-from{font-size:14px;font-weight:500}
+.meta-addr{font-size:12px;color:var(--text3);font-family:var(--mono)}
+.meta-time{margin-left:auto;font-size:12px;color:var(--text3);font-family:var(--mono)}
+.email-view-body{font-size:14px;line-height:1.8;color:var(--text2);white-space:pre-wrap;word-break:break-word}
+.no-email-selected{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--text3);gap:16px;height:100%}
+.no-email-selected svg{opacity:.15}
+.no-email-selected p{font-size:14px}
+
+/* COMPOSE */
+.compose-overlay{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.55);backdrop-filter:blur(4px);display:flex;align-items:flex-end;justify-content:flex-end;padding:0 32px 32px 0;opacity:0;pointer-events:none;transition:opacity .2s ease}
+.compose-overlay.open{opacity:1;pointer-events:all}
+.compose-window{width:560px;background:var(--bg2);border:1px solid var(--border2);border-radius:12px;overflow:hidden;box-shadow:0 32px 80px rgba(0,0,0,.7);transform:translateY(40px) scale(.97);transition:.25s cubic-bezier(.22,1,.36,1);display:flex;flex-direction:column}
+.compose-overlay.open .compose-window{transform:translateY(0) scale(1)}
+.compose-header{padding:12px 16px;background:linear-gradient(135deg,#1a2540,#1e2d4e);display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border)}
+.compose-title{font-size:13px;font-weight:600;color:var(--text)}
+.compose-close{width:24px;height:24px;border-radius:50%;border:none;background:rgba(255,255,255,.1);color:var(--text2);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;transition:var(--transition);line-height:1}
+.compose-close:hover{background:var(--danger);color:#fff}
+.compose-field{padding:8px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px}
+.compose-field label{font-size:12px;color:var(--text3);min-width:32px;font-weight:500}
+.compose-field input{flex:1;background:transparent;border:none;outline:none;color:var(--text);font-family:var(--font);font-size:13px}
+.compose-field input::placeholder{color:var(--text3)}
+.compose-body{padding:12px 16px;flex:1;background:transparent;border:none;outline:none;color:var(--text);font-family:var(--font);font-size:14px;resize:none;min-height:200px;line-height:1.7}
+.compose-body::placeholder{color:var(--text3)}
+.compose-footer{padding:10px 16px;border-top:1px solid var(--border);display:flex;align-items:center;gap:8px;background:var(--bg3)}
+.btn-send{display:flex;align-items:center;gap:6px;padding:8px 18px;border:none;border-radius:6px;background:linear-gradient(135deg,#4f8ef7,#3a74e0);color:#fff;font-family:var(--font);font-size:13px;font-weight:600;cursor:pointer;transition:var(--transition);box-shadow:0 2px 8px rgba(79,142,247,.3)}
+.btn-send:hover{transform:translateY(-1px);box-shadow:0 4px 16px rgba(79,142,247,.45)}
+.btn-send:disabled{opacity:.5;cursor:not-allowed;transform:none}
+
+/* NOTIFICATIONS */
+.notif-container{position:fixed;top:58px;right:16px;z-index:999;display:flex;flex-direction:column;gap:8px}
+.notif{background:var(--bg2);border:1px solid var(--border2);border-radius:10px;padding:12px 16px;box-shadow:0 8px 32px rgba(0,0,0,.4);display:flex;align-items:center;gap:10px;font-size:13px;min-width:280px;max-width:360px;animation:notifIn .3s cubic-bezier(.22,1,.36,1)}
+.notif.success{border-color:rgba(82,208,138,.35)}
+.notif.error{border-color:rgba(247,111,111,.35)}
+.notif-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.notif.success .notif-dot{background:var(--success)}
+.notif.error .notif-dot{background:var(--danger)}
+.notif-out{animation:notifOut .25s ease forwards}
+
+/* CTX MENU */
+.ctx-menu{position:fixed;z-index:500;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;padding:4px;box-shadow:0 8px 32px rgba(0,0,0,.5);min-width:160px;animation:fadeIn .12s ease}
+.ctx-item{padding:7px 12px;border-radius:5px;cursor:pointer;font-size:13px;color:var(--text2);transition:var(--transition);display:flex;align-items:center;gap:8px;user-select:none}
+.ctx-item:hover{background:var(--bg3);color:var(--text)}
+.ctx-item.danger:hover{background:rgba(247,111,111,.1);color:var(--danger)}
+
+/* KEYFRAMES */
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes slideUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
+@keyframes notifIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
+@keyframes notifOut{to{opacity:0;transform:translateX(20px)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-spinner{width:32px;height:32px;border-radius:50%;border:3px solid var(--border);border-top-color:var(--accent);animation:spin .8s linear infinite;margin:auto}
+.divider{height:1px;background:var(--border);margin:4px 0}
+textarea{font-family:var(--font)}
+.spin{display:inline-block;animation:spin .7s linear infinite}
+</style>
+</head>
+<body>
+
+<!-- AUTH SCREEN -->
+<div id="auth-screen">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <div class="auth-logo-icon">✦</div>
+      <div>
+        <div class="auth-logo-text">LuminaMail</div>
+        <div class="auth-logo-sub">LRGMail &middot; Lumina Communications</div>
+      </div>
+    </div>
+    <div class="auth-tabs">
+      <div class="auth-tab active" onclick="switchTab('login')">Sign In</div>
+      <div class="auth-tab" onclick="switchTab('register')">Create Account</div>
+    </div>
+    <div class="auth-body">
+      <div class="auth-panel active" id="panel-login">
+        <div class="form-row">
+          <label>EMAIL ADDRESS</label>
+          <input type="email" id="login-email" placeholder="you@luminamail.com" autocomplete="email"/>
+        </div>
+        <div class="form-row">
+          <label>PASSWORD</label>
+          <input type="password" id="login-pass" placeholder="&#9679;&#9679;&#9679;&#9679;&#9679;&#9679;&#9679;&#9679;" autocomplete="current-password"/>
+        </div>
+        <button class="btn-primary" id="login-btn" onclick="doLogin()">Sign In to LuminaMail</button>
+        <div class="auth-msg" id="login-msg"></div>
+      </div>
+      <div class="auth-panel" id="panel-register">
+        <div class="form-row">
+          <label>YOUR NAME</label>
+          <div class="name-row">
+            <input type="text" id="reg-first" placeholder="First name" oninput="updateEmailPreview()"/>
+            <input type="text" id="reg-last" placeholder="Last name" oninput="updateEmailPreview()"/>
+          </div>
+        </div>
+        <div class="form-row">
+          <label>YOUR LUMINA ADDRESS</label>
+          <div class="email-preview" id="email-preview">enter your name above &#8593;</div>
+        </div>
+        <div class="form-row">
+          <label>PASSWORD</label>
+          <input type="password" id="reg-pass" placeholder="Min. 6 characters" autocomplete="new-password"/>
+        </div>
+        <button class="btn-primary" id="reg-btn" onclick="doRegister()">Create My Account</button>
+        <div class="auth-msg" id="reg-msg"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app">
+  <div class="toolbar">
+    <div class="toolbar-logo">
+      <div class="toolbar-logo-icon">&#10022;</div>
+      <div class="toolbar-logo-text">LuminaMail</div>
+    </div>
+    <div class="toolbar-sep"></div>
+    <button class="tb-btn" onclick="openCompose()" title="New Message (Ctrl+N)">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5H7a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-5"/><path d="M15 3l6 6-9 9H6v-6l9-9z"/></svg>
+      New Mail
+    </button>
+    <button class="tb-btn" onclick="replyEmail()" id="btn-reply">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 00-4-4H4"/></svg>
+      Reply
+    </button>
+    <button class="tb-btn" onclick="forwardEmail()" id="btn-forward">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 17 20 12 15 7"/><path d="M4 18v-2a4 4 0 014-4h12"/></svg>
+      Forward
+    </button>
+    <div class="toolbar-sep"></div>
+    <button class="tb-btn" onclick="deleteEmail()" id="btn-delete">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+      Delete
+    </button>
+    <button class="tb-btn" onclick="markUnread()" id="btn-markread">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v12H4z"/><polyline points="22 6 12 13 2 6"/></svg>
+      Mark Unread
+    </button>
+    <div class="toolbar-sep"></div>
+    <button class="tb-btn" onclick="refreshInbox()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
+      Refresh
+    </button>
+    <div class="toolbar-right">
+      <div class="toolbar-search">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#5a6380" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="search-input" placeholder="Search mail..." oninput="searchEmails()"/>
+      </div>
+      <button class="user-btn" onclick="showUserMenu(event)" id="user-btn">
+        <div class="user-avatar" id="user-avatar">?</div>
+        <span class="user-name" id="user-display-name">Loading...</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="app-body">
+    <div class="sidebar">
+      <div style="margin-bottom:4px">
+        <div class="sidebar-item active" onclick="setView('inbox')" id="nav-inbox">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z"/></svg>
+          Inbox
+          <span class="badge" id="inbox-badge" style="display:none">0</span>
+        </div>
+        <div class="sidebar-item" onclick="setView('sent')" id="nav-sent">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          Sent
+        </div>
+        <div class="sidebar-item" onclick="setView('drafts')" id="nav-drafts">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          Drafts
+        </div>
+        <div class="sidebar-item" onclick="setView('trash')" id="nav-trash">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+          Trash
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div>
+        <div class="sidebar-label">Account</div>
+        <div class="sidebar-item" onclick="showSettings()">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+          Settings
+        </div>
+        <div class="sidebar-item" onclick="doSignOut()">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          Sign Out
+        </div>
+      </div>
+    </div>
+
+    <div class="email-list-pane">
+      <div class="pane-header">
+        <div>
+          <span class="pane-title" id="pane-title">Inbox</span>
+          <span class="pane-count" id="pane-count"></span>
+        </div>
+        <button class="tb-btn-icon" onclick="refreshInbox()" style="padding:4px">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
+        </button>
+      </div>
+      <div class="email-list" id="email-list">
+        <div style="padding:32px;text-align:center"><div class="loading-spinner"></div></div>
+      </div>
+    </div>
+
+    <div class="email-view-pane" id="email-view-pane">
+      <div class="email-view-toolbar" id="email-view-toolbar" style="display:none">
+        <button class="tb-btn" onclick="replyEmail()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 00-4-4H4"/></svg>Reply
+        </button>
+        <button class="tb-btn" onclick="forwardEmail()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 17 20 12 15 7"/><path d="M4 18v-2a4 4 0 014-4h12"/></svg>Forward
+        </button>
+        <button class="tb-btn" onclick="deleteEmail()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg>Delete
+        </button>
+        <button class="tb-btn" onclick="markUnread()" style="margin-left:auto">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v12H4z"/><polyline points="22 6 12 13 2 6"/></svg>Mark Unread
+        </button>
+      </div>
+      <div id="email-content-area" style="flex:1;display:flex;overflow:hidden">
+        <div class="no-email-selected">
+          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><path d="M4 4h16v12H4z"/><polyline points="22 6 12 13 2 6"/></svg>
+          <p>Select an email to read</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- COMPOSE -->
+<div class="compose-overlay" id="compose-overlay">
+  <div class="compose-window" id="compose-window">
+    <div class="compose-header">
+      <span class="compose-title" id="compose-title">New Message</span>
+      <button class="compose-close" onclick="closeCompose()">&#10005;</button>
+    </div>
+    <div class="compose-field">
+      <label>To</label>
+      <input type="email" id="compose-to" placeholder="recipient@luminamail.com"/>
+    </div>
+    <div class="compose-field">
+      <label>Cc</label>
+      <input type="text" id="compose-cc" placeholder="optional"/>
+    </div>
+    <div class="compose-field">
+      <label>Subject</label>
+      <input type="text" id="compose-subject" placeholder="Subject"/>
+    </div>
+    <textarea class="compose-body" id="compose-body" placeholder="Write your message here..."></textarea>
+    <div class="compose-footer">
+      <button class="btn-send" id="btn-send" onclick="sendEmail()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        Send
+      </button>
+      <button class="tb-btn" onclick="saveDraft()" style="font-size:12px">Save Draft</button>
+      <button class="tb-btn" onclick="closeCompose()" style="font-size:12px;margin-left:auto">Discard</button>
+    </div>
+  </div>
+</div>
+
+<div class="notif-container" id="notif-container"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getDatabase, ref, push, set, get, onValue, update, remove } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBrl-5BVxW0uLWy_9Qiwp35458Md1wYIRE",
+  authDomain: "lr-fce08.firebaseapp.com",
+  projectId: "lr-fce08",
+  storageBucket: "lr-fce08.firebasestorage.app",
+  messagingSenderId: "276281240577",
+  appId: "1:276281240277:web:8d2df416d038d2b19fa400",
+  databaseURL: "https://lr-fce08-default-rtdb.firebaseio.com"
+};
+
+const fireApp = initializeApp(firebaseConfig);
+const auth = getAuth(fireApp);
+const db = getDatabase(fireApp);
+
+let currentUser = null;
+let currentView = 'inbox';
+let selectedEmailId = null;
+let allEmails = {};
+let searchQuery = '';
+let realtimeListener = null;
+
+// ── AUTH ──────────────────────────────────────────────────────
+window.switchTab = (tab) => {
+  document.querySelectorAll('.auth-tab').forEach((t,i)=>t.classList.toggle('active',(i===0&&tab==='login')||(i===1&&tab==='register')));
+  document.getElementById('panel-login').classList.toggle('active',tab==='login');
+  document.getElementById('panel-register').classList.toggle('active',tab==='register');
+};
+
+window.updateEmailPreview = () => {
+  const f=document.getElementById('reg-first').value.trim().toLowerCase().replace(/\s+/g,'');
+  const l=document.getElementById('reg-last').value.trim().toLowerCase().replace(/\s+/g,'');
+  const p=document.getElementById('email-preview');
+  p.textContent=(!f&&!l)?'enter your name above \u2191':`${f||'firstname'}.${l||'lastname'}@luminamail.com`;
+};
+
+window.doRegister = async () => {
+  const first=document.getElementById('reg-first').value.trim();
+  const last=document.getElementById('reg-last').value.trim();
+  const pass=document.getElementById('reg-pass').value;
+  const msg=document.getElementById('reg-msg');
+  if(!first||!last){showAuthMsg(msg,'error','Please enter first and last name.');return;}
+  if(pass.length<6){showAuthMsg(msg,'error','Password must be at least 6 characters.');return;}
+  const email=`${first.toLowerCase().replace(/\s+/g,'')}.${last.toLowerCase().replace(/\s+/g,'')}@luminamail.com`;
+  const btn=document.getElementById('reg-btn');
+  btn.disabled=true;btn.textContent='Creating account...';
+  try{
+    const cred=await createUserWithEmailAndPassword(auth,email,pass);
+    await updateProfile(cred.user,{displayName:`${first} ${last}`});
+    await set(ref(db,`users/${cred.user.uid}`),{uid:cred.user.uid,email,displayName:`${first} ${last}`,firstName:first,lastName:last,createdAt:Date.now()});
+    showAuthMsg(msg,'success','Account created! Signing you in...');
+  }catch(e){
+    showAuthMsg(msg,'error',e.code==='auth/email-already-in-use'?'That address is taken. Try a different name.':e.message);
+    btn.disabled=false;btn.textContent='Create My Account';
+  }
+};
+
+window.doLogin = async () => {
+  const email=document.getElementById('login-email').value.trim();
+  const pass=document.getElementById('login-pass').value;
+  const msg=document.getElementById('login-msg');
+  if(!email||!pass){showAuthMsg(msg,'error','Enter email and password.');return;}
+  const btn=document.getElementById('login-btn');
+  btn.disabled=true;btn.textContent='Signing in...';
+  try{await signInWithEmailAndPassword(auth,email,pass);}
+  catch(e){showAuthMsg(msg,'error','Invalid email or password.');btn.disabled=false;btn.textContent='Sign In to LuminaMail';}
+};
+
+function showAuthMsg(el,type,text){el.className=`auth-msg ${type}`;el.textContent=text;}
+
+onAuthStateChanged(auth,user=>{
+  if(user){
+    currentUser=user;
+    document.getElementById('auth-screen').classList.add('hidden');
+    document.getElementById('app').classList.add('visible');
+    const initials=(user.displayName||user.email).split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+    document.getElementById('user-avatar').textContent=initials;
+    document.getElementById('user-display-name').textContent=user.displayName||user.email;
+    startListening();
+  }else{
+    currentUser=null;
+    if(realtimeListener)realtimeListener();
+    document.getElementById('auth-screen').classList.remove('hidden');
+    document.getElementById('app').classList.remove('visible');
+    document.getElementById('login-btn').disabled=false;
+    document.getElementById('login-btn').textContent='Sign In to LuminaMail';
+    allEmails={};selectedEmailId=null;
+  }
+});
+
+// ── REALTIME ──────────────────────────────────────────────────
+function startListening(){
+  if(realtimeListener)realtimeListener();
+  realtimeListener=onValue(ref(db,`mail/${currentUser.uid}`),snap=>{
+    allEmails=snap.val()||{};
+    renderEmailList();
+    updateBadge();
+  });
+}
+
+function updateBadge(){
+  const unread=Object.values(allEmails).filter(e=>e.folder==='inbox'&&!e.read).length;
+  const badge=document.getElementById('inbox-badge');
+  badge.style.display=unread>0?'flex':'none';
+  badge.textContent=unread;
+}
+
+// ── VIEWS ─────────────────────────────────────────────────────
+window.setView=(view)=>{
+  currentView=view;selectedEmailId=null;
+  document.querySelectorAll('.sidebar-item').forEach(i=>i.classList.remove('active'));
+  const nav=document.getElementById(`nav-${view}`);
+  if(nav)nav.classList.add('active');
+  document.getElementById('pane-title').textContent=view.charAt(0).toUpperCase()+view.slice(1);
+  document.getElementById('email-view-toolbar').style.display='none';
+  document.getElementById('email-content-area').innerHTML='<div class="no-email-selected"><svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><path d="M4 4h16v12H4z"/><polyline points="22 6 12 13 2 6"/></svg><p>Select an email to read</p></div>';
+  renderEmailList();
+};
+
+window.searchEmails=()=>{searchQuery=document.getElementById('search-input').value.toLowerCase();renderEmailList();};
+
+function getFiltered(){
+  let entries=Object.entries(allEmails);
+  switch(currentView){
+    case 'inbox':entries=entries.filter(([,e])=>e.folder==='inbox');break;
+    case 'sent':entries=entries.filter(([,e])=>e.folder==='sent');break;
+    case 'drafts':entries=entries.filter(([,e])=>e.folder==='draft');break;
+    case 'trash':entries=entries.filter(([,e])=>e.folder==='trash');break;
+  }
+  if(searchQuery)entries=entries.filter(([,e])=>(e.subject||'').toLowerCase().includes(searchQuery)||(e.from||'').toLowerCase().includes(searchQuery)||(e.body||'').toLowerCase().includes(searchQuery));
+  return entries.sort((a,b)=>(b[1].timestamp||0)-(a[1].timestamp||0));
+}
+
+function renderEmailList(){
+  const list=document.getElementById('email-list');
+  const emails=getFiltered();
+  document.getElementById('pane-count').textContent=emails.length>0?`(${emails.length})`:'';
+  if(!emails.length){list.innerHTML='<div class="empty-state"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><path d="M4 4h16v12H4z"/><polyline points="22 6 12 13 2 6"/></svg><p>No messages here</p></div>';return;}
+  list.innerHTML=emails.map(([id,email])=>{
+    const isUnread=!email.read&&email.folder==='inbox';
+    const isActive=id===selectedEmailId;
+    const from=email.folder==='sent'?`To: ${email.to}`:(email.fromName||email.from||'Unknown');
+    return `<div class="email-item${isUnread?' unread':''}${isActive?' active':''}" onclick="openEmail('${id}')" oncontextmenu="showCtxMenu(event,'${id}')">
+      <div class="email-item-header">
+        <div class="email-item-from">${esc(from)}</div>
+        <div class="email-item-time">${fmtTime(email.timestamp)}</div>
+      </div>
+      <div class="email-item-subject">${esc(email.subject||'(no subject)')}</div>
+      <div class="email-item-preview">${esc((email.body||'').replace(/\n/g,' ').slice(0,80))}</div>
+    </div>`;
+  }).join('');
+}
+
+// ── OPEN ──────────────────────────────────────────────────────
+window.openEmail=async(id)=>{
+  selectedEmailId=id;
+  const email=allEmails[id];if(!email)return;
+  if(!email.read&&email.folder==='inbox')await update(ref(db,`mail/${currentUser.uid}/${id}`),{read:true});
+  renderEmailList();
+  const area=document.getElementById('email-content-area');
+  const av=(email.fromName||email.from||'?').split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+  area.innerHTML=`<div class="email-view-content" style="flex:1;overflow-y:auto;padding:28px 32px">
+    <div class="email-view-subject">${esc(email.subject||'(no subject)')}</div>
+    <div class="email-view-meta">
+      <div class="meta-avatar">${av}</div>
+      <div>
+        <div class="meta-from">${esc(email.fromName||email.from||'Unknown')}</div>
+        <div class="meta-addr">${esc(email.from||'')}</div>
+        ${email.to?`<div class="meta-addr" style="margin-top:2px">To: ${esc(email.to)}</div>`:''}
+      </div>
+      <div class="meta-time">${fmtFull(email.timestamp)}</div>
+    </div>
+    <div class="email-view-body">${esc(email.body||'')}</div>
+  </div>`;
+  document.getElementById('email-view-toolbar').style.display='flex';
+};
+
+// ── COMPOSE ───────────────────────────────────────────────────
+window.openCompose=(opts={})=>{
+  document.getElementById('compose-to').value=opts.to||'';
+  document.getElementById('compose-cc').value=opts.cc||'';
+  document.getElementById('compose-subject').value=opts.subject||'';
+  document.getElementById('compose-body').value=opts.body||'';
+  document.getElementById('compose-title').textContent=opts.title||'New Message';
+  document.getElementById('compose-overlay').classList.add('open');
+  setTimeout(()=>document.getElementById('compose-to').focus(),150);
+};
+
+window.closeCompose=()=>document.getElementById('compose-overlay').classList.remove('open');
+
+window.replyEmail=()=>{
+  if(!selectedEmailId)return;
+  const e=allEmails[selectedEmailId];if(!e)return;
+  openCompose({title:'Reply',to:e.from,subject:e.subject?.startsWith('Re:')?e.subject:`Re: ${e.subject||''}`,body:`\n\n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\nOn ${fmtFull(e.timestamp)}, ${e.fromName||e.from} wrote:\n\n${e.body||''}`});
+};
+
+window.forwardEmail=()=>{
+  if(!selectedEmailId)return;
+  const e=allEmails[selectedEmailId];if(!e)return;
+  openCompose({title:'Forward',subject:e.subject?.startsWith('Fwd:')?e.subject:`Fwd: ${e.subject||''}`,body:`\n\n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\nForwarded from ${e.fromName||e.from}:\n\n${e.body||''}`});
+};
+
+window.sendEmail=async()=>{
+  const to=document.getElementById('compose-to').value.trim();
+  const subject=document.getElementById('compose-subject').value.trim();
+  const body=document.getElementById('compose-body').value;
+  if(!to){showNotif('error','Please enter a recipient.');return;}
+  if(!to.includes('@')){showNotif('error','Invalid email address.');return;}
+  const btn=document.getElementById('btn-send');
+  btn.disabled=true;btn.innerHTML='<span class="spin">\u21bb</span> Sending...';
+  try{
+    const usersSnap=await get(ref(db,'users'));
+    let recipientUid=null;
+    if(usersSnap.exists())usersSnap.forEach(c=>{if(c.val().email?.toLowerCase()===to.toLowerCase())recipientUid=c.val().uid;});
+    const ts=Date.now();
+    const emailData={from:currentUser.email,fromName:currentUser.displayName||currentUser.email,to,subject,body,timestamp:ts,read:false};
+    await set(push(ref(db,`mail/${currentUser.uid}`)),{...emailData,folder:'sent',read:true});
+    if(recipientUid){
+      await set(push(ref(db,`mail/${recipientUid}`)),{...emailData,folder:'inbox'});
+      showNotif('success',`Delivered to ${to}`);
+    }else{
+      showNotif('success','Sent! (Recipient not on LuminaMail - saved to Sent)');
+    }
+    closeCompose();
+  }catch(e){showNotif('error','Send failed: '+e.message);}
+  btn.disabled=false;btn.innerHTML='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Send';
+};
+
+window.saveDraft=async()=>{
+  await set(push(ref(db,`mail/${currentUser.uid}`)),{from:currentUser.email,fromName:currentUser.displayName||currentUser.email,to:document.getElementById('compose-to').value,subject:document.getElementById('compose-subject').value,body:document.getElementById('compose-body').value,timestamp:Date.now(),read:true,folder:'draft'});
+  showNotif('success','Draft saved.');closeCompose();
+};
+
+// ── ACTIONS ───────────────────────────────────────────────────
+window.deleteEmail=async()=>{
+  if(!selectedEmailId)return;
+  const email=allEmails[selectedEmailId];if(!email)return;
+  if(email.folder==='trash'){await remove(ref(db,`mail/${currentUser.uid}/${selectedEmailId}`));showNotif('success','Permanently deleted.');}
+  else{await update(ref(db,`mail/${currentUser.uid}/${selectedEmailId}`),{folder:'trash'});showNotif('success','Moved to Trash.');}
+  selectedEmailId=null;
+  document.getElementById('email-content-area').innerHTML='<div class="no-email-selected"><svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><path d="M4 4h16v12H4z"/><polyline points="22 6 12 13 2 6"/></svg><p>Select an email to read</p></div>';
+  document.getElementById('email-view-toolbar').style.display='none';
+};
+
+window.markUnread=async()=>{
+  if(!selectedEmailId)return;
+  const email=allEmails[selectedEmailId];if(!email)return;
+  await update(ref(db,`mail/${currentUser.uid}/${selectedEmailId}`),{read:!email.read});
+  showNotif('success',email.read?'Marked as unread.':'Marked as read.');
+};
+
+window.refreshInbox=()=>showNotif('success','Inbox is live & up to date.');
+window.doSignOut=async()=>{if(realtimeListener)realtimeListener();await signOut(auth);};
+window.showSettings=()=>showNotif('success','Settings coming soon!');
+
+// ── CTX MENU ──────────────────────────────────────────────────
+window.showCtxMenu=(e,id)=>{
+  e.preventDefault();removeCtxMenu();
+  const email=allEmails[id];if(!email)return;
+  const m=document.createElement('div');m.className='ctx-menu';
+  m.style.cssText=`left:${e.clientX}px;top:${e.clientY}px`;
+  m.innerHTML=`<div class="ctx-item" onclick="openEmail('${id}');removeCtxMenu()">\uD83D\uDCEC Open</div>
+    <div class="ctx-item" onclick="selReply('${id}')">&#8617; Reply</div>
+    <div class="ctx-item" onclick="selFwd('${id}')">&#8618; Forward</div>
+    <div class="ctx-item" onclick="markById('${id}')">&#9711; Mark as ${email.read?'unread':'read'}</div>
+    <div class="ctx-item danger" onclick="delById('${id}')">\uD83D\uDDD1 Delete</div>`;
+  document.body.appendChild(m);
+  setTimeout(()=>document.addEventListener('click',removeCtxMenu,{once:true}),0);
+};
+window.removeCtxMenu=()=>document.querySelectorAll('.ctx-menu').forEach(m=>m.remove());
+window.selReply=(id)=>{openEmail(id);setTimeout(replyEmail,80);removeCtxMenu();};
+window.selFwd=(id)=>{openEmail(id);setTimeout(forwardEmail,80);removeCtxMenu();};
+window.markById=async(id)=>{const e=allEmails[id];if(e)await update(ref(db,`mail/${currentUser.uid}/${id}`),{read:!e.read});removeCtxMenu();};
+window.delById=async(id)=>{
+  const e=allEmails[id];if(!e)return;
+  if(e.folder==='trash')await remove(ref(db,`mail/${currentUser.uid}/${id}`));
+  else await update(ref(db,`mail/${currentUser.uid}/${id}`),{folder:'trash'});
+  if(selectedEmailId===id){selectedEmailId=null;document.getElementById('email-content-area').innerHTML='<div class="no-email-selected"><svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><path d="M4 4h16v12H4z"/><polyline points="22 6 12 13 2 6"/></svg><p>Select an email to read</p></div>';document.getElementById('email-view-toolbar').style.display='none';}
+  removeCtxMenu();showNotif('success','Moved to Trash.');
+};
+
+// ── USER MENU ─────────────────────────────────────────────────
+window.showUserMenu=(e)=>{
+  e.stopPropagation();removeCtxMenu();
+  const rect=document.getElementById('user-btn').getBoundingClientRect();
+  const m=document.createElement('div');m.className='ctx-menu';
+  m.style.cssText=`right:${window.innerWidth-rect.right}px;top:${rect.bottom+6}px;left:auto`;
+  m.innerHTML=`<div class="ctx-item" style="color:var(--text3);font-size:11px;cursor:default">${currentUser?.email||''}</div>
+    <div style="height:1px;background:var(--border);margin:4px 0"></div>
+    <div class="ctx-item" onclick="showSettings();removeCtxMenu()">\u2699 Settings</div>
+    <div class="ctx-item danger" onclick="doSignOut();removeCtxMenu()">\u23CF Sign Out</div>`;
+  document.body.appendChild(m);
+  setTimeout(()=>document.addEventListener('click',removeCtxMenu,{once:true}),0);
+};
+
+// ── NOTIFICATIONS ─────────────────────────────────────────────
+function showNotif(type,text){
+  const c=document.getElementById('notif-container');
+  const n=document.createElement('div');n.className=`notif ${type}`;
+  n.innerHTML=`<div class="notif-dot"></div><span>${text}</span>`;
+  c.appendChild(n);
+  setTimeout(()=>{n.classList.add('notif-out');setTimeout(()=>n.remove(),300);},3500);
+}
+window.showNotif=showNotif;
+
+// ── UTILS ─────────────────────────────────────────────────────
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function fmtTime(ts){
+  if(!ts)return'';
+  const d=new Date(ts),now=new Date();
+  if(d.toDateString()===now.toDateString())return d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  if(now-d<7*864e5)return d.toLocaleDateString([],{weekday:'short'});
+  return d.toLocaleDateString([],{month:'short',day:'numeric'});
+}
+function fmtFull(ts){return ts?new Date(ts).toLocaleString([],{weekday:'short',month:'short',day:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit'}):''}
+
+// Keyboard shortcuts
+document.getElementById('login-pass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+document.getElementById('login-email').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+document.getElementById('reg-pass').addEventListener('keydown',e=>{if(e.key==='Enter')doRegister();});
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape')closeCompose();
+  if((e.metaKey||e.ctrlKey)&&e.key==='n'){e.preventDefault();openCompose();}
+  if((e.metaKey||e.ctrlKey)&&e.key==='Enter'&&document.getElementById('compose-overlay').classList.contains('open'))sendEmail();
+});
+
+// Close compose on bg click
+document.getElementById('compose-overlay').addEventListener('click',e=>{if(e.target===document.getElementById('compose-overlay'))closeCompose();});
+</script>
+</body>
+</html>
