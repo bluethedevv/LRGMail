@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>LuminaMail - Home</title>
+<title>LuminaMail</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
 <style>
 :root{--bg:#0d0f14;--bg2:#13161e;--bg3:#1a1e2a;--bg4:#202533;--border:#2a2f3f;--border2:#353b4f;--accent:#4f8ef7;--accent2:#7ab3ff;--accent-glow:rgba(79,142,247,.18);--text:#e8ecf5;--text2:#9aa3bb;--text3:#5a6380;--danger:#f76f6f;--success:#52d08a;--sidebar-w:220px;--toolbar-h:48px;--font:'DM Sans',sans-serif;--mono:'DM Mono',monospace;--radius:8px;--tr:.18s cubic-bezier(.4,0,.2,1)}
@@ -529,13 +529,7 @@ window.fwdEmail=()=>{
     body:`\n\n────────────────────\nForwarded from ${e.fromName||e.from}:\n\n${e.body||''}`});
 };
 
-/* ══════════════════════════════════════════════════════
-   SEND — Fixed version
-   • Always saves to Sent first
-   • Looks up recipient via emailIndex (fast)
-   • Falls back to scanning /users (slower but safe)
-   • Button ALWAYS gets re-enabled on failure
-══════════════════════════════════════════════════════ */
+/* ── FIXED SEND EMAIL FUNCTION ── */
 window.sendEmail=async()=>{
   const to     =document.getElementById('cto').value.trim();
   const subject=document.getElementById('csub').value.trim();
@@ -548,48 +542,68 @@ window.sendEmail=async()=>{
 
   try {
     const ts=Date.now();
-    const base={ from:CU.email, fromName:CU.displayName||CU.email, to, subject, body, timestamp:ts };
+    
+    // Create email data object
+    const emailData = { 
+      from: CU.email, 
+      fromName: CU.displayName || CU.email, 
+      to: to, 
+      subject: subject || '(no subject)', 
+      body: body || '', 
+      timestamp: ts,
+      read: true
+    };
 
-    /* 1. Save to Sent — this ALWAYS works (own mailbox) */
-    await set(push(ref(db,`mail/${CU.uid}`)), { ...base, folder:'sent', read:true });
+    // Save to sender's Sent folder
+    const sentRef = push(ref(db, `mail/${CU.uid}`));
+    await set(sentRef, { 
+      ...emailData, 
+      folder: 'sent'
+    });
 
-    /* 2. Find recipient UID */
-    let ruid=null;
-
-    /* Fast path: emailIndex lookup */
+    // Find recipient UID by scanning users
+    let ruid = null;
+    
     try {
-      const ekey=to.toLowerCase().replace(/\./g,'_DOT_').replace(/@/g,'_AT_');
-      const snap=await get(ref(db,`emailIndex/${ekey}`));
-      if(snap.exists()) ruid=snap.val();
-    } catch(e){ console.warn('emailIndex failed:',e.message); }
-
-    /* Slow path: scan users node */
-    if(!ruid){
-      try {
-        const snap=await get(ref(db,'users'));
-        if(snap.exists()){
-          snap.forEach(c=>{
-            const u=c.val();
-            if(u&&u.email&&u.email.toLowerCase()===to.toLowerCase()) ruid=u.uid;
-          });
-        }
-      } catch(e){ console.warn('users scan failed:',e.message); }
+      const usersSnap = await get(ref(db, 'users'));
+      if (usersSnap.exists()) {
+        usersSnap.forEach(childSnap => {
+          const userData = childSnap.val();
+          if (userData && userData.email && userData.email.toLowerCase() === to.toLowerCase()) {
+            ruid = childSnap.key;
+          }
+        });
+      }
+    } catch(e) { 
+      console.warn('Error finding user:', e); 
     }
 
-    /* 3. Deliver */
-    if(ruid){
-      await set(push(ref(db,`mail/${ruid}`)), { ...base, folder:'inbox', read:false });
-      notif('ok',`Delivered to ${to}`);
+    // Deliver to recipient's inbox if they exist
+    if (ruid) {
+      const inboxRef = push(ref(db, `mail/${ruid}`));
+      await set(inboxRef, { 
+        from: CU.email,
+        fromName: CU.displayName || CU.email,
+        to: to,
+        subject: subject || '(no subject)',
+        body: body || '',
+        timestamp: ts,
+        folder: 'inbox',
+        read: false
+      });
+      notif('ok', `Email delivered to ${to}`);
     } else {
-      notif('inf',`Sent. ${to} is not on LuminaMail yet.`);
+      notif('inf', `Email sent. ${to} is not on LuminaMail yet.`);
     }
 
-    closeCompose(); /* also calls btnReady() */
+    // Close compose and reset button
+    closeCompose();
+    notif('ok', 'Message sent successfully!');
 
   } catch(err){
-    console.error('sendEmail error:',err);
-    notif('err','Send failed: '+err.message);
-    btnReady(); /* re-enable button on any error */
+    console.error('sendEmail error:', err);
+    notif('err', 'Send failed: ' + err.message);
+    btnReady(); // Re-enable button on error
   }
 };
 
